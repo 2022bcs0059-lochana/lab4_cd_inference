@@ -18,6 +18,6 @@ def predict(features: list = Body(...)):
     pred = model.predict(data)
     return {
         "name": "Lochana Balivada",
-        "roll_no": "<YOUR_ROLL_NO>",
+        "roll_no": "2022BCS0059",
         "wine_quality": int(round(pred[0]))
     }
