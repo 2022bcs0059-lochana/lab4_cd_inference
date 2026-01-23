@@ -5,23 +5,30 @@ on:
     branches: [ "main" ]
 
 jobs:
+  # =========================
+  # JOB 1: TRAIN (CI)
+  # =========================
   train:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Install deps
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
 
       - name: Train model
-        run: python scripts/train.py
+        run: |
+          python scripts/train.py
 
-      - name: Upload artifacts
+      - name: Upload model & metrics artifacts
         uses: actions/upload-artifact@v4
         with:
           name: model-artifacts
@@ -29,33 +36,58 @@ jobs:
             model/
             metrics.json
 
+
+  # =========================
+  # JOB 2: DEPLOY (CD)
+  # =========================
   deploy:
     needs: train
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: model-artifacts
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+
       - name: Read metrics
         run: |
           echo "MSE=$(jq .mse metrics.json)" >> $GITHUB_ENV
           echo "R2=$(jq .r2 metrics.json)" >> $GITHUB_ENV
 
-      - name: Check improvement
+      - name: Compare with BEST_MSE
         run: |
+          echo "Current MSE: $MSE"
+          echo "Best MSE: ${{ vars.BEST_MSE }}"
+
           if (( $(echo "$MSE >= ${{ vars.BEST_MSE }}" | bc -l) )); then
-            echo "Metric did not improve"
-            exit 0
+            echo "${{ github.actor }}----Metric did not improve"
+            exit 1
           fi
 
       - name: Docker login
-        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        run: |
+          echo "${{ secrets.DOCKER_TOKEN }}" | docker login \
+            -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Build & push image
+      - name: Build Docker image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/lab4_wine:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/lab4_wine:${{ github.sha }}
+
+      - name: Update BEST_MSE variable
+        run: |
+          curl -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/variables/BEST_MSE \
+            -d "{\"name\":\"BEST_MSE\",\"value\":\"$MSE\"}"
