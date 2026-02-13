@@ -30,7 +30,7 @@ pipeline {
                 sh '''
                 . venv/bin/activate
                 echo "Name: Lochana Balivada"
-                echo "Roll No: 2022BCS0059"
+                echo "Roll no: 2022BCS0059"
                 python scripts/train.py
                 echo "Metrics Output:"
                 cat metrics.json
