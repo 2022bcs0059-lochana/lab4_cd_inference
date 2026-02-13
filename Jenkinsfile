@@ -14,10 +14,13 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Setup Python venv & Install Dependencies') {
             steps {
                 sh '''
-                pip3 install -r requirements.txt
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
                 '''
             }
         }
@@ -25,10 +28,11 @@ pipeline {
         stage('Train Model') {
             steps {
                 sh '''
+                . venv/bin/activate
                 echo "Name: Lochana Balivada"
                 echo "Roll No: 2022BCS0059"
-                python3 scripts/train.py
-                echo "Metrics:"
+                python scripts/train.py
+                echo "Metrics Output:"
                 cat metrics.json
                 '''
             }
@@ -45,17 +49,4 @@ pipeline {
         stage('Docker Hub Login') {
             steps {
                 sh '''
-                echo $DOCKER_TOKEN | docker login -u $DOCKER_USERNAME --password-stdin
-                '''
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh '''
-                docker push $DOCKER_USERNAME/lab5_wine:latest
-                '''
-            }
-        }
-    }
-}
+                echo
