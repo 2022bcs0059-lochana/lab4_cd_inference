@@ -30,7 +30,7 @@ pipeline {
                 sh '''
                 . venv/bin/activate
                 echo "Name: Lochana Balivada"
-                echo "Roll no: 2022BCS0059"
+                echo "Roll No: 2022BCS0059"
                 python scripts/train.py
                 echo "Metrics Output:"
                 cat metrics.json
@@ -49,4 +49,17 @@ pipeline {
         stage('Docker Hub Login') {
             steps {
                 sh '''
-                echo
+                echo $DOCKER_TOKEN | docker login -u $DOCKER_USERNAME --password-stdin
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                docker push $DOCKER_USERNAME/lab5_wine:latest
+                '''
+            }
+        }
+    }
+}
