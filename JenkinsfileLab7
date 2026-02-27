@@ -33,7 +33,8 @@ pipeline {
                 sh """
                     echo Waiting for API...
                     for i in {1..20}; do
-                        STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://host.docker.internal:${PORT}/docs || true)
+                        STATUS=\$(docker exec ${CONTAINER_NAME} \
+			curl -s -o /dev/null -w "%{http_code}" http://host.docker.internal:${PORT}/docs || true)
                         echo Attempt \$i Status \$STATUS
                         if [ "\$STATUS" = "200" ]; then
                             echo API Ready
@@ -51,7 +52,8 @@ pipeline {
             steps {
                 sh """
                     echo Sending valid request...
-                    RESPONSE=\$(curl -s -X POST http://host.docker.internal:${PORT}/predict \
+                    RESPONSE=\$(docker exec ${CONTAINER_NAME} \
+		    curl -s -X POST http://host.docker.internal:${PORT}/predict \
                     -H "Content-Type: application/json" \
                     -d @tests/valid.json)
 
@@ -65,7 +67,8 @@ pipeline {
             steps {
                 sh """
                     echo Sending invalid request...
-                    STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \
+                    STATUS=\$(docker exec ${CONTAINER_NAME} \
+	            curl -s -o /dev/null -w "%{http_code}" \
                     -X POST http://host.docker.internal:${PORT}/predict \
                     -H "Content-Type: application/json" \
                     -d @tests/invalid.json)
