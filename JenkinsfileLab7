@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "lochanabcs59/lab5_wine:latest"
+        IMAGE_NAME = "lochanabcs59/lab5_wine:latest"   // CHANGE if needed
         CONTAINER_NAME = "wine_test_container"
         PORT = "8000"
     }
@@ -12,7 +12,8 @@ pipeline {
         stage('Pull Image') {
             steps {
                 sh '''
-                docker pull $IMAGE_NAME
+                    echo "Pulling Docker image..."
+                    docker pull $IMAGE_NAME
                 '''
             }
         }
@@ -20,7 +21,8 @@ pipeline {
         stage('Run Container') {
             steps {
                 sh '''
-                docker run -d -p 8000:8000 --name $CONTAINER_NAME $IMAGE_NAME
+                    echo "Starting container..."
+                    docker run -d -p $PORT:8000 --name $CONTAINER_NAME $IMAGE_NAME
                 '''
             }
         }
@@ -28,54 +30,88 @@ pipeline {
         stage('Wait for Service Readiness') {
             steps {
                 sh '''
-                echo "Waiting for API..."
-                for i in {1..20}; do
-                    curl -s http://localhost:8000/docs && break
-                    sleep 3
-                done
-
-    }
-}        }
-                '''
-            }
-                docker rm $CONTAINER_NAME || true
-        stage('Stop Container') {
-            steps {
-                sh '''
-                docker stop $CONTAINER_NAME || true
-                '''
-            }
-                '''
-            }
-        }
-        }
-                    echo "API accepted invalid input!"
+                    echo "Waiting for API to be ready..."
+                    for i in {1..20}; do
+                        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/docs || true)
+                        if [ "$STATUS" = "200" ]; then
+                            echo "API is ready!"
+                            exit 0
+                        fi
+                        sleep 3
+                    done
+                    echo "API did not start in time"
                     exit 1
-                fi
-                -d @tests/invalid.json)
+                '''
+            }
+        }
 
-                echo "Invalid request status: $STATUS"
-                if [ "$STATUS" = "200" ]; then
-
-                sh '''
-                -H "Content-Type: application/json" \
-                STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
-                -X POST http://localhost:8000/predict \
-
-            steps {
         stage('Valid Inference Test') {
+            steps {
+                sh '''
+                    echo "Sending valid inference request..."
+
+                    RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
+                    -H "Content-Type: application/json" \
+                    -d @tests/valid.json)
+
+                    echo "Response:"
+                    echo $RESPONSE
+
+                    echo $RESPONSE | grep predicted_quality > /dev/null
+
+                    if [ $? -ne 0 ]; then
+                        echo "Prediction field missing!"
+                        exit 1
+                    fi
+                '''
+            }
+        }
+
         stage('Invalid Input Test') {
             steps {
                 sh '''
-                RESPONSE=$(curl -s -X POST http://localhost:8000/predict \
-                -H "Content-Type: application/json" \
-                -d @tests/valid.json)
+                    echo "Sending invalid request..."
 
-                echo "Valid Response:"
-                echo $RESPONSE
+                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                    -X POST http://localhost:$PORT/predict \
+                    -H "Content-Type: application/json" \
+                    -d @tests/invalid.json)
 
-                echo $RESPONSE | grep predicted_quality
+                    echo "HTTP Status for invalid input: $STATUS"
+
+                    if [ "$STATUS" = "200" ]; then
+                        echo "API incorrectly accepted invalid input!"
+                        exit 1
+                    fi
                 '''
+            }
         }
 
+        stage('Stop Container') {
+            steps {
+                sh '''
+                    echo "Stopping container..."
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
+                '''
+            }
+        }
+    }
 
+    post {
+        always {
+            sh '''
+                docker stop $CONTAINER_NAME || true
+                docker rm $CONTAINER_NAME || true
+            '''
+        }
+
+        success {
+            echo "Pipeline PASSED: All validations successful."
+        }
+
+        failure {
+            echo "Pipeline FAILED: Validation error detected."
+        }
+    }
+}
