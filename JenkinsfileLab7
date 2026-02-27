@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "lochanabcs59/lab5_wine:latest"   // CHANGE if needed
+        IMAGE_NAME = "lochanabcs59/lab5_wine:latest"   // change if needed
         CONTAINER_NAME = "wine_test_container"
         PORT = "8000"
     }
@@ -22,6 +22,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Starting container..."
+                    docker rm -f $CONTAINER_NAME || true
                     docker run -d -p $PORT:8000 --name $CONTAINER_NAME $IMAGE_NAME
                 '''
             }
@@ -30,15 +31,22 @@ pipeline {
         stage('Wait for Service Readiness') {
             steps {
                 sh '''
-                    echo "Waiting for API to be ready..."
+                    echo "Waiting for API to start..."
+
                     for i in {1..20}; do
-                        STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/docs || true)
+                        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                        http://host.docker.internal:$PORT/docs || true)
+
+                        echo "Attempt $i -> Status: $STATUS"
+
                         if [ "$STATUS" = "200" ]; then
                             echo "API is ready!"
                             exit 0
                         fi
+
                         sleep 3
                     done
+
                     echo "API did not start in time"
                     exit 1
                 '''
@@ -50,7 +58,8 @@ pipeline {
                 sh '''
                     echo "Sending valid inference request..."
 
-                    RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
+                    RESPONSE=$(curl -s -X POST \
+                    http://host.docker.internal:$PORT/predict \
                     -H "Content-Type: application/json" \
                     -d @tests/valid.json)
 
@@ -73,45 +82,38 @@ pipeline {
                     echo "Sending invalid request..."
 
                     STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                    -X POST http://localhost:$PORT/predict \
+                    -X POST http://host.docker.internal:$PORT/predict \
                     -H "Content-Type: application/json" \
                     -d @tests/invalid.json)
 
-                    echo "HTTP Status for invalid input: $STATUS"
-
-                    if [ "$STATUS" = "200" ]; then
-                        echo "API incorrectly accepted invalid input!"
-                        exit 1
-                    fi
-                '''
-            }
-        }
-
-        stage('Stop Container') {
-            steps {
-                sh '''
-                    echo "Stopping container..."
-                    docker stop $CONTAINER_NAME || true
-                    docker rm $CONTAINER_NAME || true
-                '''
-            }
-        }
+                    echo "Invalid request status: $STATUS"
+}        }
     }
 
-    post {
-        always {
-            sh '''
-                docker stop $CONTAINER_NAME || true
-                docker rm $CONTAINER_NAME || true
-            '''
-        }
-
-        success {
-            echo "Pipeline PASSED: All validations successful."
+                    if [ "$STATUS" = "200" ]; then
         }
 
         failure {
             echo "Pipeline FAILED: Validation error detected."
+                        echo "API incorrectly accepted invalid input!"
+                        exit 1
+            echo "Pipeline PASSED: All inference validations successful."
+                    fi
+        success {
+                '''
+
+            }
         }
-    }
-}
+        }
+
+                docker rm $CONTAINER_NAME || true
+            '''
+        stage('Stop Container') {
+            steps {
+
+                docker stop $CONTAINER_NAME || true
+    post {
+        always {
+            sh '''
+                sh '''
+                    echo "Stopping container..."
