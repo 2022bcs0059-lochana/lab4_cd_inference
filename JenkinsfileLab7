@@ -57,40 +57,44 @@ pipeline {
     	}
 	}	
 
-        stage('Valid Test') {
-            steps {
-                sh """
-                    echo Sending valid request...
-                    RESPONSE=\$(docker exec ${CONTAINER_NAME} \
-		    curl -s -X POST http://localhost:8000/predict \
-                    -H "Content-Type: application/json" \
-                    -d @tests/valid.json)
+stage('Valid Test') {
+    steps {
+        sh '''
+            echo "Sending valid request..."
 
-                    echo \$RESPONSE
-                    echo \$RESPONSE | grep predicted_quality > /dev/null
-                """
-            }
-        }
+            RESPONSE=$(docker exec wine_test_container \
+            curl -s -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d @tests/valid.json)
 
-        stage('Invalid Test') {
-            steps {
-                sh """
-                    echo Sending invalid request...
-                    STATUS=\$(docker exec ${CONTAINER_NAME} \
-	            curl -s -o /dev/null -w "%{http_code}" \
-                    -X POST http://localhost:8000/predict \
-                    -H "Content-Type: application/json" \
-                    -d @tests/invalid.json)
+            echo "$RESPONSE"
 
-                    echo Invalid status \$STATUS
+            echo "$RESPONSE" | grep predicted_quality > /dev/null
+        '''
+    }
+}
 
-                    if [ "\$STATUS" = "200" ]; then
-                        echo API accepted invalid input
-                        exit 1
-                    fi
-                """
-            }
-        }
+stage('Invalid Test') {
+    steps {
+        sh '''
+            echo "Sending invalid request..."
+
+            STATUS=$(docker exec wine_test_container \
+            curl -s -o /dev/null -w "%{http_code}" \
+            -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d @tests/invalid.json)
+
+            echo "Invalid status $STATUS"
+
+            if [ "$STATUS" = "200" ]; then
+                echo "API accepted invalid input"
+                exit 1
+            fi
+        '''
+    }
+}
+
 
         stage('Cleanup') {
             steps {
