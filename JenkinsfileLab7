@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "lochanabcs59/lab5_wine:v2"
+        IMAGE_NAME = "lochanabcs59/lab5_wine:v3"
         CONTAINER_NAME = "wine_test_container"
         PORT = "8000"
     }
