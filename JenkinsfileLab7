@@ -1,0 +1,81 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "lochanabcs59/lab5_wine:latest"
+        CONTAINER_NAME = "wine_test_container"
+        PORT = "8000"
+    }
+
+    stages {
+
+        stage('Pull Image') {
+            steps {
+                sh '''
+                docker pull $IMAGE_NAME
+                '''
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh '''
+                docker run -d -p 8000:8000 --name $CONTAINER_NAME $IMAGE_NAME
+                '''
+            }
+        }
+
+        stage('Wait for Service Readiness') {
+            steps {
+                sh '''
+                echo "Waiting for API..."
+                for i in {1..20}; do
+                    curl -s http://localhost:8000/docs && break
+                    sleep 3
+                done
+
+    }
+}        }
+                '''
+            }
+                docker rm $CONTAINER_NAME || true
+        stage('Stop Container') {
+            steps {
+                sh '''
+                docker stop $CONTAINER_NAME || true
+                '''
+            }
+                '''
+            }
+        }
+        }
+                    echo "API accepted invalid input!"
+                    exit 1
+                fi
+                -d @tests/invalid.json)
+
+                echo "Invalid request status: $STATUS"
+                if [ "$STATUS" = "200" ]; then
+
+                sh '''
+                -H "Content-Type: application/json" \
+                STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                -X POST http://localhost:8000/predict \
+
+            steps {
+        stage('Valid Inference Test') {
+        stage('Invalid Input Test') {
+            steps {
+                sh '''
+                RESPONSE=$(curl -s -X POST http://localhost:8000/predict \
+                -H "Content-Type: application/json" \
+                -d @tests/valid.json)
+
+                echo "Valid Response:"
+                echo $RESPONSE
+
+                echo $RESPONSE | grep predicted_quality
+                '''
+        }
+
+
