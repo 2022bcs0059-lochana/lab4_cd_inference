@@ -10,6 +10,94 @@ pipeline {
 
         stage('Pull Image') {
             steps {
+                sh '''
+                docker rmi $IMAGE || true
+                docker pull $IMAGE
+                '''
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh '''
+                docker rm -f $CONTAINER_NAME || true
+
+                docker run -d \
+                  --network lab7_net \
+                  --name $CONTAINER_NAME \
+                  $IMAGE
+                '''
+            }
+        }
+
+        stage('Wait for Service') {
+            steps {
+                sh '''
+                echo "Waiting for API..."
+
+                ATTEMPTS=20
+                COUNT=1
+
+                while [ $COUNT -le $ATTEMPTS ]
+                do
+                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+                    http://wine_test_container:8000/health || true)
+
+                    echo "Attempt $COUNT → Status $STATUS"
+
+                    if [ "$STATUS" = "200" ]; then
+                        echo "Service is UP"
+                        exit 0
+                    fi
+
+                    COUNT=$((COUNT+1))
+                    sleep 3
+                done
+
+                echo "Service failed to start"
+                docker logs $CONTAINER_NAME
+                exit 1
+                '''
+            }
+        }
+
+        stage('Valid Inference Test') {
+            steps {
+                sh '''
+                echo "Running valid inference test..."
+
+                RESPONSE=$(curl -s -X POST \
+                  http://wine_test_container:8000/predict \
+                  -H "Content-Type: application/json" \
+                  -d @tests/valid_input.json)
+
+                echo "Response: $RESPONSE"
+
+                echo "$RESPONSE" | jq '.predicted_quality' > /dev/null \
+                  || { echo "Prediction missing"; exit 1; }
+                '''
+            }
+        }
+
+        stage('Invalid Inference Test') {
+            steps {
+                sh '''
+                echo "Running invalid inference test..."
+
+                STATUS=$(curl -s -o response.txt -w "%{http_code}" \
+                  -X POST http://wine_test_container:8000/predict \
+                  -H "Content-Type: application/json" \
+                  -d @tests/invalid_input.json)
+
+                echo "Returned status: $STATUS"
+
+                if [ "$STATUS" = "200" ]; then
+                    echo "Invalid request incorrectly succeeded"
+                    exit 1
+                fi
+                '''
+            }
+        }
 
         stage('Stop Container') {
             steps {
@@ -20,91 +108,4 @@ pipeline {
             }
         }
     }
-}                sh '''
-                docker rmi $IMAGE || true
-                docker pull $IMAGE
-                '''
-            }
-        }
-
-        stage('Run Container') {
-            steps {
-                sh '''
-                fi
-        }
-                '''
-            }
-                docker rm -f $CONTAINER_NAME || true
-
-                docker run -d \
-                  --network lab7_net \
-                if [ "$STATUS" = "200" ]; then
-                    echo "Invalid request incorrectly succeeded"
-                    exit 1
-                  --name $CONTAINER_NAME \
-                  $IMAGE
-                '''
-            }
-        }
-
-        stage('Wait for Service') {
-            steps {
-                echo "Returned status: $STATUS"
-
-                sh '''
-                  -H "Content-Type: application/json" \
-                  -d @tests/invalid_input.json)
-
-                echo "Waiting for API..."
-
-                ATTEMPTS=20
-                COUNT=1
-
-                while [ $COUNT -le $ATTEMPTS ]
-                do
-
-                STATUS=$(curl -s -o response.txt -w "%{http_code}" \
-                  -X POST http://wine_test_container:8000/predict \
-                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                    http://wine_test_container:8000/health || true)
-
-            steps {
-                sh '''
-                echo "Running invalid inference test..."
-                    echo "Attempt $COUNT → Status $STATUS"
-
-                    if [ "$STATUS" = "200" ]; then
-
-        stage('Invalid Inference Test') {
-                        echo "Service is UP"
-                        exit 0
-                    fi
-
-
-                  -d @tests/valid_input.json)
-                    COUNT=$((COUNT+1))
-                    sleep 3
-                done
-                '''
-            }
-        }
-
-                echo "$RESPONSE" | jq '.predicted_quality' > /dev/null \
-                  || { echo "Prediction missing"; exit 1; }
-                  -H "Content-Type: application/json" \
-                echo "Response: $RESPONSE"
-
-                  http://wine_test_container:8000/predict \
-
-                RESPONSE=$(curl -s -X POST \
-                sh '''
-                echo "Running valid inference test..."
-        stage('Valid Inference Test') {
-            steps {
-        }
-
-                echo "Service failed to start"
-            }
-                docker logs $CONTAINER_NAME
-                exit 1
-
+}
