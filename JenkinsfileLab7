@@ -67,10 +67,9 @@ pipeline {
 
                 echo "Running valid inference test..."
 
-		RESPONSE=$(cat "$WORKSPACE/tests/valid.json" | \
-        	curl -s -X POST http://wine_test_container:8000/predict \
-         	   -H "Content-Type: application/json" \
-          	   -d @-)
+		RESPONSE=$(curl -s -X POST http://wine_test_container:8000/predict \
+                  -H "Content-Type: application/json" \
+                  -d @tests/valid.json)		
 		
                 echo "Response: $RESPONSE"
 
@@ -86,10 +85,11 @@ pipeline {
 
                 echo "Running invalid inference test..."
 
-                STATUS=$(curl -s -o response.txt -w "%{http_code}" \
+		STATUS=$(curl -s -o response.txt -w "%{http_code}" \
                   -X POST http://wine_test_container:8000/predict \
                   -H "Content-Type: application/json" \
-                  -d @$WORKSPACE/tests/invalid.json)
+                  -d @tests/invalid.json)
+		
 
                 echo "Returned status: $STATUS"
 
