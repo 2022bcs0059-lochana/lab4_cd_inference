@@ -74,7 +74,7 @@ pipeline {
                 RESPONSE=$(curl -s -X POST \
                   http://wine_test_container:8000/predict \
                   -H "Content-Type: application/json" \
-                  -d @$WORKSPACE/tests/valid_input.json)
+                  -d @"$WORKSPACE/tests/valid_input.json")
 
                 echo "Response: $RESPONSE"
 
