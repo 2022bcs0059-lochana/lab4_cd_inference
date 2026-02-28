@@ -21,4 +21,7 @@ def predict(features: list = Body(...)):
         "roll_no": "2022BCS0059",
         "wine_quality": int(round(pred[0]))
     }
-# rebuild
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
