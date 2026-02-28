@@ -65,17 +65,13 @@ pipeline {
             steps {
                 sh '''
 
-                echo "Preparing test files..."
-
-		chmod -R 755 $WORKSPACE/tests                
-
                 echo "Running valid inference test..."
 
-                RESPONSE=$(curl -s -X POST \
-                  http://wine_test_container:8000/predict \
-                  -H "Content-Type: application/json" \
-                  -d @"$WORKSPACE/tests/valid_input.json")
-
+		RESPONSE=$(cat "$WORKSPACE/tests/valid_input.json" | \
+        	curl -s -X POST http://wine_test_container:8000/predict \
+         	   -H "Content-Type: application/json" \
+          	   -d @-)
+		
                 echo "Response: $RESPONSE"
 
                 echo "$RESPONSE" | jq '.predicted_quality' > /dev/null \
