@@ -69,7 +69,7 @@ pipeline {
                 RESPONSE=$(curl -s -X POST \
                   http://wine_test_container:8000/predict \
                   -H "Content-Type: application/json" \
-                  -d @WORKSPACE/tests/valid_input.json)
+                  -d @$WORKSPACE/tests/valid_input.json)
 
                 echo "Response: $RESPONSE"
 
@@ -87,7 +87,7 @@ pipeline {
                 STATUS=$(curl -s -o response.txt -w "%{http_code}" \
                   -X POST http://wine_test_container:8000/predict \
                   -H "Content-Type: application/json" \
-                  -d @WORKSPACE/tests/invalid_input.json)
+                  -d @$WORKSPACE/tests/invalid_input.json)
 
                 echo "Returned status: $STATUS"
 
